@@ -23,4 +23,8 @@ from .full_method import (FullMeasureErrorMitigationGenerator,
                           FullMeasureErrorMitigator,
                           fit_full_measure_error_mitigator)
 
+from .tensor_method import (TensorMeasureErrorMitigationGenerator,
+                            TensorMeasureErrorMitigator,
+                            fit_tensor_measure_error_mitigator)
+
 from .meas_mit_utils import counts_expectation_value, counts_probability_vector
