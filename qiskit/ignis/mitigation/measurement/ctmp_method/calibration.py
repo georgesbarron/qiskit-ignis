@@ -14,19 +14,20 @@
 """Perform CTMP calibration for error mitigation.
 """
 
-# pylint: disable=missing-function-docstring
+# pylint: disable=invalid-name
+# pylint: disable=logging-format-interpolation
 
 import logging
 from abc import abstractmethod
-from copy import deepcopy
 from itertools import combinations, product
 from typing import List, Union, Tuple, Dict, Set
 
 import numpy as np
-from qiskit import QuantumCircuit
-from qiskit.result import Result
 from scipy import sparse
 from scipy.linalg import logm
+
+from qiskit import QuantumCircuit
+from qiskit.result import Result
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ set `C_i` is represented by `g = ('1', '0', [5])`
 """
 Generator = Tuple[str, str, Tuple[int]]
 
+
 _KET_BRA_DICT = {
     '00': np.array([[1, 0], [0, 0]]),
     '01': np.array([[0, 1], [0, 0]]),
@@ -45,20 +47,30 @@ _KET_BRA_DICT = {
 }
 
 
-def tensor_list(l: List[np.array]) -> np.array:  # pylint: disable=invalid-name
+def tensor_list(parts: List[np.array]) -> np.array:  # pylint: disable=invalid-name
     """Given a list [a, b, c, ...], return
     the array a otimes b otimes c otimes ...
     """
-    res = l[0]
-    for m in l[1:]:
+    res = parts[0]
+    for m in parts[1:]:
         res = sparse.kron(res, m)
     return res
 
 
 def generator_to_sparse_matrix(gen: Generator, num_qubits: int) -> sparse.coo_matrix:
+    """Compute the matrix form of a generator.
+
+    Args:
+        gen (Generator): Generator to use.
+        num_qubits: Number of qubits for final operator.
+
+    Returns:
+        sparse.coo_matrix: Sparse representation of generator.
+    """
     b, a, c = gen
     shape = (2 ** num_qubits,) * 2
     res = sparse.coo_matrix(shape)
+    # pylint: disable=unnecessary-lambda
     ba_strings = list(map(lambda x: ''.join(x), list(zip(*[b, a]))))
     aa_strings = list(map(lambda x: ''.join(x), list(zip(*[a, a]))))
     ba_mats = [sparse.eye(2, 2).tocoo()] * num_qubits
@@ -71,23 +83,20 @@ def generator_to_sparse_matrix(gen: Generator, num_qubits: int) -> sparse.coo_ma
     return res
 
 
-def str_del_inds(in_str: str, indices: List[int]) -> str:
-    l = list(in_str[::-1])
-    for i in sorted(indices, reverse=True):
-        del l[i]
-    return ''.join(l[::-1])
-
-
-def delete_qubits(input_str: str, q_list: Set[int]) -> str:
-    num_qubits = len(input_str)
-    q_inds = [num_qubits - i - 1 for i in q_list]
-    l = list(input_str)
-    for i in sorted(q_inds, reverse=True):
-        del l[i]
-    return ''.join(l)
-
-
 def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
+    """Ask whether or not two bitstrings are equal on a set of bits.
+
+    Args:
+        str_1 (str): First string.
+        str_2 (str): Second string.
+        qubits (Set[int]): Qubits to check.
+
+    Returns:
+        bool: Whether or not the strings match on the given indices.
+
+    Raises:
+        ValueError: When the strings do not have equal length.
+    """
     num_qubits = len(str_1)
     if len(str_1) != len(str_2):
         raise ValueError('Strings must have same length')
@@ -98,10 +107,14 @@ def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
     return True
 
 
-def no_error_out_set(in_set: Set[int], counts_dict: Dict[str, int], input_state: str) -> Dict[
-    str, int]:
-    """Given a counts dictionary, a desired bitstring, and an "input set", return the dictionary of counts
-    where there are no errors on qubits not in `in_set`, as determined by `input_state`.
+def no_error_out_set(
+        in_set: Set[int],
+        counts_dict: Dict[str, int],
+        input_state: str
+) -> Dict[str, int]:
+    """Given a counts dictionary, a desired bitstring, and an "input set",
+    return the dictionary of counts where there are no errors on qubits
+    not in `in_set`, as determined by `input_state`.
     """
     output_dict = {}
     num_qubits = len(input_state)
@@ -112,12 +125,21 @@ def no_error_out_set(in_set: Set[int], counts_dict: Dict[str, int], input_state:
     return output_dict
 
 
-def compute_gamma(g_matrix: sparse.csr_matrix) -> float:
-    if isinstance(g_matrix, sparse.csr_matrix):
-        _g_matrix = g_matrix
-    else:
-        _g_matrix = sparse.csr_matrix(g_matrix)
-    cg = -_g_matrix.tocoo()
+def compute_gamma(g_matrix: sparse.coo_matrix) -> float:
+    """Compute the factor `gamma` for a given generator matrix. See paper
+    for details.
+
+    Args:
+        g_matrix (sparse.coo_matrix): Generator matrix to check.
+
+    Returns:
+        float: `gamma` factor.
+
+    Raises:
+        ValueError: When the given `g_matrix` does not have a non-negative value. Typically occurs
+            if there is no readout error in the backend used to run the calibration circuits.
+    """
+    cg = -g_matrix.tocoo()
     current_max = -np.inf
     logger.info('Computing gamma...')
     for i, j, v in zip(cg.row, cg.col, cg.data):
@@ -154,36 +176,76 @@ def local_a_matrix(j: int, k: int, counts_dicts: Dict[str, Dict[str, int]]) -> n
 
 
 class BaseGeneratorSet:
+    """Set of generators used to calibrate CTMP method. Includes information about how to
+    calibrate the generator coefficients.
+    """
 
     def __init__(self, num_qubits: int):
+        """
+        Args:
+            num_qubits: Number of qubits on which the set of generators acts.
+        """
         self.num_qubits = num_qubits
         self._generators = []
 
     def __len__(self) -> int:
+        """
+        Returns:
+            int: The number of generators in the set.
+        """
         return len(self._generators)
 
     def __getitem__(self, i: int) -> Generator:
+        """
+        Args:
+            i: Index of a generator.
+
+        Returns:
+            Generator: The i-th generator in the set.
+        """
         return self._generators[i]
 
     def __list__(self) -> List[Generator]:
+        """Return the set of generators as a list.
+        """
         return self._generators
 
     def add_generators(self, gen_list: List[Generator]):
-        self._generators.extend(gen_list)
+        """Add a generator to the set.
 
-    def __add__(self, other):
-        if self.num_qubits != other.num_qubits:
-            raise ValueError('Generator sets must act on same number of qubits')
-        res = deepcopy(self)
-        res.add_generators(list(other))
-        return res
+        Args:
+            gen_list: Generator to add.
+        """
+        self._generators.extend(gen_list)
 
     @abstractmethod
     def get_ctmp_error_rate(self, gen: Generator, g_mat_dict: Dict[Generator, np.array]) -> float:
+        """Compute the error rate for a given generator, given the associated list of G(j,k)
+        arrays.
+
+        Args:
+            gen (Generator): Generator to compute the coefficient of.
+            g_mat_dict (Dict[Generator, np.array]): Dictionary of arrays for G(j,k) for various
+                generators.
+
+        Returns:
+            float: The coefficient r_i corresponding to the generator G_i.
+        """
         pass
 
     @abstractmethod
     def local_g_matrix(self, gen: Generator, counts_dicts: Dict[str, Dict[str, int]]) -> np.array:
+        """Compute the matrix G(j,k) given all the counts dictionaries needed to calibrate.
+
+        Args:
+            gen (Generator): Generator to calibrate.
+            counts_dicts (Dict[str, Dict[str, int]]): Dictionary of calibration results to use.
+                Keys in the outer dict correspond to the bitstring prepared on the device. Values in
+                the outer dict correspond to the associated counts dictionary.
+
+        Returns:
+            np.array: The G(j,k) matrix for the given generator.
+        """
         pass
 
     @abstractmethod
@@ -193,14 +255,16 @@ class BaseGeneratorSet:
         """
         pass
 
-    @classmethod
-    def from_generator_list(cls, gen_list: List[Generator], num_qubits: int):
-        res = cls(num_qubits=num_qubits)
-        res.add_generators(gen_list=gen_list)
-        return res
-
 
 class StandardGeneratorSet(BaseGeneratorSet):
+    """
+    Set of generators on 1 and 2 qubits. Corresponds to the following readout errors:
+    `0 -> 1`
+    `1 -> 0`
+    `01 -> 10`
+    `11 -> 00`
+    `00 -> 11`
+    """
 
     @staticmethod
     def standard_single_qubit_bitstrings(num_qubits: int) -> List[Generator]:
@@ -215,7 +279,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
 
     @staticmethod
     def standard_two_qubit_bitstrings_symmetric(num_qubits: int, pairs=None) -> List[Generator]:
-        """
+        """Return the 11->00 and 00->11 generators on a given number of qubits.
         """
         if pairs is None:
             pairs = list(combinations(range(num_qubits), r=2))
@@ -227,7 +291,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
 
     @staticmethod
     def standard_two_qubit_bitstrings_asymmetric(num_qubits: int, pairs=None) -> List[Generator]:
-        """
+        """Return the 01->10 generators on a given number of qubits.
         """
         if pairs is None:
             pairs = list(combinations(range(num_qubits), r=2))
@@ -239,6 +303,21 @@ class StandardGeneratorSet(BaseGeneratorSet):
 
     @classmethod
     def from_num_qubits(cls, num_qubits: int, pairs=None):
+        """Construct this generator set given a number of qubits, and optionally the pairs of
+        qubits to use.
+
+        Args:
+            num_qubits (int): Number of qubits to calibrate.
+            pairs (Optional[List[Tuple[int, int]]]): The pairs of qubits to compute generators for.
+                If None, then use all pairs. Defaults to None.
+
+        Returns:
+            StandardGeneratorSet: The generator set.
+
+        Raises:
+            ValueError: Either the number of qubits is negative or not an int.
+            ValueError: The number of generators does not match what it should be by counting.
+        """
         if not isinstance(num_qubits, int):
             raise ValueError('num_qubits needs to be an int')
         if num_qubits <= 0:
@@ -254,6 +333,14 @@ class StandardGeneratorSet(BaseGeneratorSet):
         return res
 
     def supplementary_generators(self, gen_list: List[Generator]) -> List[Generator]:
+        """Supplementary generators needed to run 1q calibrations.
+
+        Args:
+            gen_list (List[Generator]): List of generators.
+
+        Returns:
+            List[Generator]: List of additional generators needed.
+        """
         pairs = {tuple(gen[2]) for gen in gen_list}
         supp_gens = []
         for tup in pairs:
@@ -264,6 +351,18 @@ class StandardGeneratorSet(BaseGeneratorSet):
         return supp_gens
 
     def get_ctmp_error_rate(self, gen: Generator, g_mat_dict: Dict[Generator, np.array]) -> float:
+        """Compute the error rate r_i for generator G_i.
+
+        Args:
+            gen (Generator): Generator to calibrate.
+            g_mat_dict (Dict[Generator, np.array]): Dictionary of local G(j,k) matrices.
+
+        Returns:
+            float: The coefficient r_i for generator G_i.
+
+        Raises:
+            ValueError: The provided generator is not already in the set of generators.
+        """
         b, a, c = gen
         if gen not in self._generators:
             raise ValueError('Invalid generator encountered: {}'.format(gen))
@@ -278,6 +377,8 @@ class StandardGeneratorSet(BaseGeneratorSet):
 
     def _ctmp_err_rate_1_q(self, a: str, b: str, j: int,
                            g_mat_dict: Dict[Generator, np.array]) -> float:
+        """Compute the 1q error rate for a given generator.
+        """
         rate_list = []
         if a == '0' and b == '1':
             g1 = ('00', '10')
@@ -301,6 +402,8 @@ class StandardGeneratorSet(BaseGeneratorSet):
         return rate
 
     def _ctmp_err_rate_2_q(self, gen, g_mat_dict) -> float:
+        """Compute the 2 qubit error rate for a given generator.
+        """
         g_mat = g_mat_dict[gen]
         b, a, _ = gen
         r = g_mat[int(b, 2), int(a, 2)]
@@ -327,23 +430,45 @@ class StandardGeneratorSet(BaseGeneratorSet):
 
     @staticmethod
     def amat_to_gmat(a_mat: np.array) -> np.array:
+        """Map the A(j,k) matrix to the G(j,k) matrix.
+        """
         return logm(a_mat)
 
 
 class BaseCalibrationCircuitSet:
+    """Set of circuits needed to perform CTMP calibration.
+    """
 
     def __init__(self, num_qubits: int):
+        """Initialize with a given number of qubits.
+        """
         self.num_qubits = num_qubits
         self.cal_circ_dict = {}  # type: Dict[str, QuantumCircuit]
 
     @property
-    def circs(self):
+    def circs(self) -> List[QuantumCircuit]:
+        """Return the circuits in the calibration set.
+        """
         return list(self.cal_circ_dict.values())
 
     def __dict__(self):
+        """Return the set of calibration circuits as a dictionary. The keys are the bitstring
+        to prepare on the register, and the keys are the circuits that accomplish this.
+        """
         return self.cal_circ_dict
 
     def bitstring_to_circ(self, bits: Union[str, int]) -> QuantumCircuit:
+        """Helper function to turn bitstrings into circuits.
+
+        Args:
+            bits (Union[str, int]): Bitstring to prepare.
+
+        Returns:
+            QuantumCircuit: The circuit that prepares the given bitstring.
+
+        Raises:
+            ValueError: When the input for `bits` is not a string or an int.
+        """
         if isinstance(bits, int):
             bitstring = np.binary_repr(bits, width=self.num_qubits)  # type: str
         elif isinstance(bits, str):
@@ -358,21 +483,28 @@ class BaseCalibrationCircuitSet:
         return circ
 
     def get_weight_1_str(self, index: int) -> str:
+        """Return a one-hot bitstring.
+        """
         out = ['0'] * self.num_qubits
         out[index] = '1'
         return ''.join(out)[::-1]
 
-    @classmethod
-    def from_dict(cls, num_qubits: int, cal_circ_dict: Dict[str, QuantumCircuit]):
-        res = cls(num_qubits)
-        res.cal_circ_dict = cal_circ_dict
-        return res
-
 
 class StandardCalibrationCircuitSet(BaseCalibrationCircuitSet):
+    """
+    The set of calibration circuits including all weight 1 bitstrings, plus 1...1 and 0...0.
+    """
 
     @classmethod
     def from_num_qubits(cls, num_qubits: int):
+        """Construct this calibration circuit set for a given number of qubits.
+
+        Args:
+            num_qubits (int): Number of qubits.
+
+        Returns:
+            StandardCalibrationCircuitSet: The resulting circuit set.
+        """
         res = cls(num_qubits=num_qubits)
         cal_strings = ['0' * num_qubits, '1' * num_qubits]
         cal_strings.extend([res.get_weight_1_str(i) for i in range(num_qubits)])
@@ -381,9 +513,20 @@ class StandardCalibrationCircuitSet(BaseCalibrationCircuitSet):
 
 
 class WeightTwoCalibrationCircuitSet(BaseCalibrationCircuitSet):
+    """
+    The set of calibration circuits with all weight 2 bitstrings.
+    """
 
     @classmethod
     def from_num_qubits(cls, num_qubits: int):
+        """Construct this calibration circuit set for a given number of qubits.
+
+        Args:
+            num_qubits (int): Number of qubits.
+
+        Returns:
+            WeightTwoCalibrationCircuitSet: The resulting circuit set.
+        """
         res = cls(num_qubits=num_qubits)
         cal_strings = []
         cal_strings.extend(['0' * num_qubits])
@@ -399,12 +542,22 @@ class WeightTwoCalibrationCircuitSet(BaseCalibrationCircuitSet):
 
 
 class MeasurementCalibrator:
+    """
+    Perform the calibration of the CTMP method given a set of circuits and set of generators.
+    Also holds the results of this calibration.
+    """
 
     def __init__(
             self,
             cal_circ_set: BaseCalibrationCircuitSet,
             gen_set: BaseGeneratorSet
     ):
+        """Construct the calibrator.
+
+        Args:
+            cal_circ_set (BaseCalibrationCircuitSet): The calibration circuit set to use.
+            gen_set (BaseGeneratorSet): The generator set to use.
+        """
         self.cal_circ_set = cal_circ_set
         self.gen_set = gen_set
         self._num_qubits = self.gen_set.num_qubits
@@ -415,38 +568,67 @@ class MeasurementCalibrator:
         self.calibrated = False
 
     @classmethod
-    def standard_construction(cls, num_qubits: int):
+    def standard_construction(cls, num_qubits: int, method: str = 'weight_2'):
+        """Construct the calibrator using one of the standard constructions.
+
+        Args:
+            num_qubits (int): Number of qubits to calibrate.
+            method (str): Circuit set to use, either `'weight_1'` or `'weight_2'`.
+
+        Returns:
+            MeasurementCalibrator: The calibrator.
+
+        Raises:
+            ValueError: Invalid method given for calibration circuit set.
+        """
+        if method == 'weight_2':
+            circ_set = WeightTwoCalibrationCircuitSet.from_num_qubits(num_qubits)
+        elif method == 'weight_1':
+            circ_set = StandardCalibrationCircuitSet.from_num_qubits(num_qubits)
+        else:
+            raise ValueError('Invalid method given, needs to be either weight_1 or weight_2.')
         res = cls(
-            cal_circ_set=WeightTwoCalibrationCircuitSet.from_num_qubits(num_qubits),
+            cal_circ_set=circ_set,
             gen_set=StandardGeneratorSet.from_num_qubits(num_qubits)
         )
         return res
 
     @property
     def gamma(self) -> float:
+        """The coefficient `gamma` for simulating the Markov process.
+        """
         if not self.calibrated:
             raise ValueError('Calibration has not been run yet')
         return self._gamma
 
     @property
     def r_dict(self) -> Dict[Generator, float]:
+        """A dictionary with keys as `Generator`s, and the values as their associated error rates.
+        These are the `r_i` and `G_i` pairs.
+        """
         if not self.calibrated:
             raise ValueError('Calibration has not been run yet')
         return self._r_dict
 
     @property
     def G(self) -> float:
+        """The generator of the matrix `A` with `A=e^G`.
+        """
         if not self.calibrated:
             raise ValueError('Calibration has not been run yet')
         return self._tot_g_mat
 
     @property
     def B(self):
+        """The stochastic matrix `B = Id + G / gamma`.
+        """
         if not self.calibrated:
             raise ValueError('Calibration has not been run yet')
         return self._b_mat
 
     def __repr__(self):
+        """A string representation of the calibrator.
+        """
         res = "Operator error mitigation calibrator\n"
         res += "Num generators: {}, Num qubits: {}\n".format(len(self.gen_set), self._num_qubits)
         if self.calibrated:
@@ -460,12 +642,30 @@ class MeasurementCalibrator:
         return res
 
     def circ_dicts(self, result: Result) -> Dict[str, Dict[str, int]]:
+        """Compute the dictionary of counts dictionaries for all the calibration circuits.
+
+        Args:
+            result (Result): The Result object from running the calibration circuits.
+
+        Returns:
+            Dict[str, Dict[str, int]]: The dictionary whose keys are the prepared bitstrings and
+                keys are the counts dictionaries for each bitstring.
+        """
         circ_dicts = {}
         for bits, circ in self.cal_circ_set.cal_circ_dict.items():
             circ_dicts[bits] = result.get_counts(circ)
         return circ_dicts
 
     def calibrate(self, result: Result) -> Tuple[float, Dict[Generator, float]]:
+        """Perform the CTMP calibration given a result.
+
+        Args:
+            result (Result): The Result object from running all of the calibration circuits.
+
+        Returns:
+            Tuple[float, Dict[Generator, float]]: The value of `gamma` along with the dictionary
+                for the `r_i` and `G_i` values, i.e. the calibration parameters for each generator.
+        """
         logger.info('Beginning calibration with {} generators on {} qubits'.format(
             len(self.gen_set), self._num_qubits
         ))
@@ -503,8 +703,10 @@ class MeasurementCalibrator:
 
         return self.gamma, self.r_dict
 
-    def total_g_matrix(self, r_dict: Dict[Generator, float]) -> sparse.csr_matrix:
-        res = sparse.csr_matrix((2 ** self._num_qubits, 2 ** self._num_qubits), dtype=np.float)
+    def total_g_matrix(self, r_dict: Dict[Generator, float]) -> sparse.coo_matrix:
+        """Compute the total `G` matrix given the coefficients `r_i` and the generators `G_i`.
+        """
+        res = sparse.coo_matrix((2 ** self._num_qubits, 2 ** self._num_qubits), dtype=np.float)
         logger.info('Computing sparse G matrix')
         for gen, r in r_dict.items():
             res += r * generator_to_sparse_matrix(gen, self._num_qubits)

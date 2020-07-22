@@ -144,7 +144,8 @@ def markov_chain_int(trans_mat: sparse.csc_matrix, x: Union[int, List[int]],
     Args:
         trans_mat (sparse.csc_matrix): Transition matrix for Markov process.
         x (Union[int, List[int]]): List of initial states to use, or a single initial state.
-        alpha (Union[int, List[int]]): List of steps to take for each initial state, or a single number of steps.
+        alpha (Union[int, List[int]]): List of steps to take for each initial state,
+            or a single number of steps.
 
     Returns:
         Union[int, List[int]]: List of final states, or single final state.

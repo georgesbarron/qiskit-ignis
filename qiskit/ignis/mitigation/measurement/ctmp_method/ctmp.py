@@ -19,8 +19,8 @@ from itertools import combinations
 from typing import List, Tuple, Dict, Union
 
 import numpy as np
-from qiskit.ignis.verification.tomography import marginal_counts
 from scipy import sparse
+from qiskit.ignis.verification.tomography import marginal_counts
 
 from .calibration import MeasurementCalibrator
 from .markov_compiled import markov_chain_int
@@ -171,8 +171,10 @@ def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[st
         raise NotImplementedError('Variance is not implemented')
 
 
-def mitigated_expectation_values(cal: MeasurementCalibrator, counts_dict: Dict[str, int]) -> Dict[
-    str, float]:
+def mitigated_expectation_values(
+        cal: MeasurementCalibrator,
+        counts_dict: Dict[str, int]
+) -> Dict[str, float]:
     """Apply mitigation to counts dictionary with all combinations of qubits being measured.
     Mimics  `expectation_counts` in Ignis, but with mitigated expectation values.
 
