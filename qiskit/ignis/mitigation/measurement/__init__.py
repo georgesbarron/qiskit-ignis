@@ -18,3 +18,9 @@ Measurement error mitigation module
 # Legacy Measurement Error mitigation
 from .legacy import (complete_meas_cal, tensored_meas_cal, MeasurementFilter,
                      TensoredFilter, CompleteMeasFitter, TensoredMeasFitter)
+
+from .full_method import (FullMeasureErrorMitigationGenerator,
+                          FullMeasureErrorMitigator,
+                          fit_full_measure_error_mitigator)
+
+from .meas_mit_utils import counts_expectation_value, counts_probability_vector

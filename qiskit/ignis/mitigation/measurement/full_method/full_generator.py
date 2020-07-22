@@ -1,0 +1,40 @@
+# -*- coding: utf-8 -*-
+
+# This code is part of Qiskit.
+#
+# (C) Copyright IBM 2019, 2020.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+"""
+Full-matrix measurement error mitigation generator.
+"""
+
+from qiskit.circuit import QuantumCircuit
+from ..base_meas_mit_generator import BaseMeasureErrorMitigationGenerator
+
+
+class FullMeasureErrorMitigationGenerator(BaseMeasureErrorMitigationGenerator):
+    """Full measurement mitigation generator."""
+    # pylint: disable=arguments-differ
+
+    def __init__(self, num_qubits: int):
+        """Initialize measurement mitigation calibration generator."""
+        circuits = []
+        labels = []
+        for i in range(2**num_qubits):
+            bits = bin(i)[2:]
+            label = (num_qubits - len(bits)) * '0' + bits
+            circ = QuantumCircuit(num_qubits, name='cal_' + label)
+            for qubit, val in enumerate(reversed(bits)):
+                if val == '1':
+                    circ.x(qubit)
+            circ.measure_all()
+            circuits.append(circ)
+            labels.append(label)
+        super().__init__(num_qubits, circuits, labels)
