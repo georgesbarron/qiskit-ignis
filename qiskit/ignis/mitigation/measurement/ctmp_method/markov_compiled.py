@@ -14,8 +14,6 @@
 """Simulate Markov processes.
 """
 
-# pylint: disable=line-too-long
-
 import logging
 import random
 from typing import List, Union
@@ -25,9 +23,9 @@ from scipy import sparse
 
 logger = logging.getLogger(__name__)
 
-
 try:
     import numba
+
     USE_NUMBA = True
 except ImportError:
     USE_NUMBA = False
@@ -83,7 +81,7 @@ def csc_col_slice(col: int, vals, indices, indptrs):
         List[float]: The vector corresponding to the slice `M[:,col]`.
     """
     begin_slice = indptrs[int(col)]
-    end_slice = indptrs[int(col)+1]
+    end_slice = indptrs[int(col) + 1]
     vals_slice = vals[begin_slice:end_slice]
     inds_slice = indices[begin_slice:end_slice]
     return inds_slice, vals_slice
@@ -108,6 +106,7 @@ def _markov_chain_int(x: int, alpha: int, vals, indices, indptrs) -> int:
         inds, probs = csc_col_slice(y, vals=vals, indices=indices, indptrs=indptrs)
         y = choice(inds, probs)
     return y
+
 
 @jit_fallback
 def _multi_markov_chain_int(x_list, alpha_list, vals, indices, indptrs):
@@ -136,6 +135,7 @@ def _multi_markov_chain_int(x_list, alpha_list, vals, indices, indptrs):
         )
         res.append(y)
     return res
+
 
 def markov_chain_int(trans_mat: sparse.csc_matrix, x: Union[int, List[int]], alpha: Union[int, List[int]]) -> int:
     """Apply simulate the Markov process for the transition matrix `trans_mat`.

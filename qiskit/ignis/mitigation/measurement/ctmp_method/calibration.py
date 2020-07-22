@@ -37,7 +37,6 @@ set `C_i` is represented by `g = ('1', '0', [5])`
 """
 Generator = Tuple[str, str, Tuple[int]]
 
-
 _KET_BRA_DICT = {
     '00': np.array([[1, 0], [0, 0]]),
     '01': np.array([[0, 1], [0, 0]]),
@@ -46,7 +45,7 @@ _KET_BRA_DICT = {
 }
 
 
-def tensor_list(l: List[np.array]) -> np.array: # pylint: disable=invalid-name
+def tensor_list(l: List[np.array]) -> np.array:  # pylint: disable=invalid-name
     """Given a list [a, b, c, ...], return
     the array a otimes b otimes c otimes ...
     """
@@ -58,7 +57,7 @@ def tensor_list(l: List[np.array]) -> np.array: # pylint: disable=invalid-name
 
 def generator_to_sparse_matrix(gen: Generator, num_qubits: int) -> sparse.coo_matrix:
     b, a, c = gen
-    shape = (2**num_qubits,) * 2
+    shape = (2 ** num_qubits,) * 2
     res = sparse.coo_matrix(shape)
     ba_strings = list(map(lambda x: ''.join(x), list(zip(*[b, a]))))
     aa_strings = list(map(lambda x: ''.join(x), list(zip(*[a, a]))))
@@ -81,7 +80,7 @@ def str_del_inds(in_str: str, indices: List[int]) -> str:
 
 def delete_qubits(input_str: str, q_list: Set[int]) -> str:
     num_qubits = len(input_str)
-    q_inds = [num_qubits-i-1 for i in q_list]
+    q_inds = [num_qubits - i - 1 for i in q_list]
     l = list(input_str)
     for i in sorted(q_inds, reverse=True):
         del l[i]
@@ -185,14 +184,14 @@ class BaseGeneratorSet:
     @abstractmethod
     def local_g_matrix(self, gen: Generator, counts_dicts: Dict[str, Dict[str, int]]) -> np.array:
         pass
-    
+
     @abstractmethod
     def supplementary_generators(self, gen_list: List[Generator]) -> List[Generator]:
         """These generators do not have rates directly associated with them, but are used to compute
         rates for other generators.
         """
         pass
-    
+
     @classmethod
     def from_generator_list(cls, gen_list: List[Generator], num_qubits: int):
         res = cls(num_qubits=num_qubits)
@@ -209,7 +208,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
         """
         res = [('1', '0', (i,)) for i in range(num_qubits)]
         res += [('0', '1', (i,)) for i in range(num_qubits)]
-        if len(res) != 2*num_qubits:
+        if len(res) != 2 * num_qubits:
             raise ValueError('Should have gotten 2n qubits, got {}'.format(len(res)))
         return res
 
@@ -221,7 +220,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
             pairs = list(combinations(range(num_qubits), r=2))
         res = [('11', '00', (i, j)) for i, j in pairs if i < j]
         res += [('00', '11', (i, j)) for i, j in pairs if i < j]
-        if len(res) != num_qubits*(num_qubits-1):
+        if len(res) != num_qubits * (num_qubits - 1):
             raise ValueError('Should have gotten n(n-1) qubits, got {}'.format(len(res)))
         return res
 
@@ -233,7 +232,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
             pairs = list(combinations(range(num_qubits), r=2))
         res = [('10', '01', (i, j)) for i, j in pairs]
         res += [('10', '01', (j, i)) for i, j in pairs]
-        if len(res) != num_qubits*(num_qubits-1):
+        if len(res) != num_qubits * (num_qubits - 1):
             raise ValueError('Should have gotten n(n-1) qubits, got {}'.format(len(res)))
         return res
 
@@ -248,10 +247,10 @@ class StandardGeneratorSet(BaseGeneratorSet):
         if num_qubits > 1:
             res.add_generators(res.standard_two_qubit_bitstrings_symmetric(num_qubits, pairs=pairs))
             res.add_generators(res.standard_two_qubit_bitstrings_asymmetric(num_qubits, pairs=pairs))
-            if len(res) != 2*num_qubits**2:
+            if len(res) != 2 * num_qubits ** 2:
                 raise ValueError('Should have gotten 2n^2 generators, got {}...'.format(len(res)))
         return res
-    
+
     def supplementary_generators(self, gen_list: List[Generator]) -> List[Generator]:
         pairs = {tuple(gen[2]) for gen in gen_list}
         supp_gens = []
@@ -274,7 +273,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
             gen, rate
         ))
         return rate
-    
+
     def _ctmp_err_rate_1_q(self, a: str, b: str, j: int, g_mat_dict: Dict[Generator, np.array]) -> float:
         rate_list = []
         if a == '0' and b == '1':
@@ -293,7 +292,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
                 gen = g_strs + (c,)
                 r = self._ctmp_err_rate_2_q(gen, g_mat_dict)
                 rate_list.append(r)
-        if len(rate_list) != 2*(self.num_qubits-1):
+        if len(rate_list) != 2 * (self.num_qubits - 1):
             raise ValueError('Rate list has wrong number of elements')
         rate = np.mean(rate_list)
         return rate
@@ -322,7 +321,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
                         logger.debug('Found negative element of size: {}'.format(g[i, j]))
                         g[i, j] = 0
         return g
-    
+
     @staticmethod
     def amat_to_gmat(a_mat: np.array) -> np.array:
         return logm(a_mat)
@@ -332,20 +331,20 @@ class BaseCalibrationCircuitSet:
 
     def __init__(self, num_qubits: int):
         self.num_qubits = num_qubits
-        self.cal_circ_dict = {} # type: Dict[str, QuantumCircuit]
+        self.cal_circ_dict = {}  # type: Dict[str, QuantumCircuit]
 
     @property
     def circs(self):
         return list(self.cal_circ_dict.values())
-    
+
     def __dict__(self):
         return self.cal_circ_dict
-    
+
     def bitstring_to_circ(self, bits: Union[str, int]) -> QuantumCircuit:
         if isinstance(bits, int):
-            bitstring = np.binary_repr(bits, width=self.num_qubits) # type: str
+            bitstring = np.binary_repr(bits, width=self.num_qubits)  # type: str
         elif isinstance(bits, str):
-            bitstring = bits # type: str
+            bitstring = bits  # type: str
         else:
             raise ValueError('Input bits must be either str or int')
         circ = QuantumCircuit(self.num_qubits, name='cal-{}'.format(bitstring))
@@ -354,12 +353,12 @@ class BaseCalibrationCircuitSet:
                 circ.x(i)
         circ.measure_all()
         return circ
-    
+
     def get_weight_1_str(self, index: int) -> str:
-        out = ['0']*self.num_qubits
+        out = ['0'] * self.num_qubits
         out[index] = '1'
         return ''.join(out)[::-1]
-    
+
     @classmethod
     def from_dict(cls, num_qubits: int, cal_circ_dict: Dict[str, QuantumCircuit]):
         res = cls(num_qubits)
@@ -372,7 +371,7 @@ class StandardCalibrationCircuitSet(BaseCalibrationCircuitSet):
     @classmethod
     def from_num_qubits(cls, num_qubits: int):
         res = cls(num_qubits=num_qubits)
-        cal_strings = ['0'*num_qubits, '1'*num_qubits]
+        cal_strings = ['0' * num_qubits, '1' * num_qubits]
         cal_strings.extend([res.get_weight_1_str(i) for i in range(num_qubits)])
         res.cal_circ_dict = {cal_str: res.bitstring_to_circ(cal_str) for cal_str in cal_strings}
         return res
@@ -384,11 +383,11 @@ class WeightTwoCalibrationCircuitSet(BaseCalibrationCircuitSet):
     def from_num_qubits(cls, num_qubits: int):
         res = cls(num_qubits=num_qubits)
         cal_strings = []
-        cal_strings.extend(['0'*num_qubits])
+        cal_strings.extend(['0' * num_qubits])
         cal_strings.extend([res.get_weight_1_str(i) for i in range(num_qubits)])
         for i, j in product(range(num_qubits), repeat=2):
             if i != j:
-                two_hot_str = ['0']*num_qubits
+                two_hot_str = ['0'] * num_qubits
                 two_hot_str[i] = '1'
                 two_hot_str[j] = '1'
                 cal_strings.append(''.join(two_hot_str))
@@ -397,17 +396,17 @@ class WeightTwoCalibrationCircuitSet(BaseCalibrationCircuitSet):
 
 
 class MeasurementCalibrator:
-    
+
     def __init__(
-            self, 
+            self,
             cal_circ_set: BaseCalibrationCircuitSet,
             gen_set: BaseGeneratorSet
-        ):
+    ):
         self.cal_circ_set = cal_circ_set
         self.gen_set = gen_set
         self._num_qubits = self.gen_set.num_qubits
         self._gamma = None
-        self._r_dict = {} # type: Dict[Generator, float]
+        self._r_dict = {}  # type: Dict[Generator, float]
         self._tot_g_mat = None
         self._b_mat = None
         self.calibrated = False
@@ -470,7 +469,7 @@ class MeasurementCalibrator:
         # Compute G(j,k) matrices
         logger.info('Computing local G matrices...')
         circ_dicts = self.circ_dicts(result)
-        for gen in list(self.gen_set)+self.gen_set.supplementary_generators(list(self.gen_set)):
+        for gen in list(self.gen_set) + self.gen_set.supplementary_generators(list(self.gen_set)):
             if len(gen[2]) > 1:
                 mat = self.gen_set.local_g_matrix(gen, circ_dicts)
                 gen_mat_dict[gen] = mat
@@ -485,7 +484,7 @@ class MeasurementCalibrator:
         # Compute gamma
         self._tot_g_mat = self.total_g_matrix(self._r_dict)
         self._gamma = compute_gamma(self._tot_g_mat)
-        self._b_mat = sparse.eye(2**self._num_qubits) + self._tot_g_mat / self._gamma
+        self._b_mat = sparse.eye(2 ** self._num_qubits) + self._tot_g_mat / self._gamma
         self._b_mat = self._b_mat.tocsc()
         logger.info('Finished calibration...')
         logger.info('num_qubits = {}, gamma = {}'.format(
@@ -501,11 +500,11 @@ class MeasurementCalibrator:
         return self.gamma, self.r_dict
 
     def total_g_matrix(self, r_dict: Dict[Generator, float]) -> sparse.csr_matrix:
-        res = sparse.csr_matrix((2**self._num_qubits, 2**self._num_qubits), dtype=np.float)
+        res = sparse.csr_matrix((2 ** self._num_qubits, 2 ** self._num_qubits), dtype=np.float)
         logger.info('Computing sparse G matrix')
         for gen, r in r_dict.items():
-            res += r*generator_to_sparse_matrix(gen, self._num_qubits)
-        num_elts = res.shape[0]**2
+            res += r * generator_to_sparse_matrix(gen, self._num_qubits)
+        num_elts = res.shape[0] ** 2
         try:
             nnz = res.nnz
             if nnz == num_elts:

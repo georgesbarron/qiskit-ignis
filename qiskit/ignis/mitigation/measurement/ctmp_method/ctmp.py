@@ -14,8 +14,6 @@
 """Apply CTMP error mitigation.
 """
 
-# pylint: disable=line-too-long
-
 from collections import Counter
 from itertools import combinations
 from typing import List, Tuple, Dict, Union
@@ -46,12 +44,12 @@ def sample_shot(counts_dict: Dict[Union[int, str], int], num_samples: int):
     return np.random.choice(bits, size=num_samples, p=probs)
 
 
-def core_ctmp_a_inverse( # pylint: disable=invalid-name
+def core_ctmp_a_inverse(  # pylint: disable=invalid-name
         B: sparse.csc_matrix,
         gamma: float,
         counts_dict: Dict[str, int],
         n_samples: int,
-    ) -> Tuple[Tuple[int], Tuple[int]]:
+) -> Tuple[Tuple[int], Tuple[int]]:
     """Apply CTMP algorithm to input counts dictionary, return
     sampled counts and associated shots. Equivalent to Algorithm 1 in
     Bravyi et al.
@@ -78,7 +76,7 @@ def ctmp_a_inverse(
         calibrator: MeasurementCalibrator,
         counts_dict: Dict[str, int],
         return_bitstrings: bool = False
-    ):
+):
     """Apply CTMP algorithm to input counts dictionary, return
     sampled counts and associated shots. Equivalent to Algorithm 1 in
     Bravyi et al.
@@ -101,7 +99,7 @@ def ctmp_a_inverse(
     gamma = calibrator.gamma
 
     n = gen_set.num_qubits
-    shots = np.sum(list(counts_dict.values())) * np.exp(2*gamma)
+    shots = np.sum(list(counts_dict.values())) * np.exp(2 * gamma)
     shots = int(np.ceil(shots))
 
     shots, signs = core_ctmp_a_inverse(
@@ -121,7 +119,8 @@ def ctmp_a_inverse(
     return plus_dict, minus_dict
 
 
-def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[str, int], subset: List[int] = None, mean_only: bool = True) -> float:
+def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[str, int], subset: List[int] = None,
+                                mean_only: bool = True) -> float:
     """Given a counts dictionary corresponding to measuring an operator in the Pauli basis,
     apply the CTMP error mitigation algorithm to the result, and return the mitigated
 
@@ -144,9 +143,9 @@ def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[st
         calibrator=cal,
         counts_dict=counts_dict,
         return_bitstrings=False
-    ) # type: Tuple[Dict[str, int], Dict[str, int]]
+    )  # type: Tuple[Dict[str, int], Dict[str, int]]
 
-    norm_c1 = np.exp(2*cal.gamma)
+    norm_c1 = np.exp(2 * cal.gamma)
     numq = cal._num_qubits
 
     shots = np.sum(list(plus_dict.values())) + np.sum(list(minus_dict.values()))
@@ -157,10 +156,10 @@ def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[st
     exp_vals = []
     if len(plus_dict) > 0:
         for key, val in marginal_counts(plus_dict, subset, pad_zeros=True).items():
-            exp_vals.append(+(-1)**(key.count('1')) * val)
+            exp_vals.append(+(-1) ** (key.count('1')) * val)
     if len(minus_dict) > 0:
         for key, val in marginal_counts(minus_dict, subset, pad_zeros=True).items():
-            exp_vals.append(-(-1)**(key.count('1')) * val)
+            exp_vals.append(-(-1) ** (key.count('1')) * val)
 
     exp_vals = np.array(exp_vals) * norm_c1 / shots * len(exp_vals)
     mean = np.mean(exp_vals)
