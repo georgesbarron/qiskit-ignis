@@ -98,7 +98,7 @@ def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
     return True
 
 
-def no_error_out_set(in_set: List[int], counts_dict: Dict[str, int], input_state: str) -> Dict[str, int]:
+def no_error_out_set(in_set: Set[int], counts_dict: Dict[str, int], input_state: str) -> Dict[str, int]:
     """Given a counts dictionary, a desired bitstring, and an "input set", return the dictionary of counts
     where there are no errors on qubits not in `in_set`, as determined by `input_state`.
     """
