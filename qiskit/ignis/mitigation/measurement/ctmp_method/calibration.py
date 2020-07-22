@@ -98,7 +98,8 @@ def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
     return True
 
 
-def no_error_out_set(in_set: Set[int], counts_dict: Dict[str, int], input_state: str) -> Dict[str, int]:
+def no_error_out_set(in_set: Set[int], counts_dict: Dict[str, int], input_state: str) -> Dict[
+    str, int]:
     """Given a counts dictionary, a desired bitstring, and an "input set", return the dictionary of counts
     where there are no errors on qubits not in `in_set`, as determined by `input_state`.
     """
@@ -246,7 +247,8 @@ class StandardGeneratorSet(BaseGeneratorSet):
         res.add_generators(res.standard_single_qubit_bitstrings(num_qubits))
         if num_qubits > 1:
             res.add_generators(res.standard_two_qubit_bitstrings_symmetric(num_qubits, pairs=pairs))
-            res.add_generators(res.standard_two_qubit_bitstrings_asymmetric(num_qubits, pairs=pairs))
+            res.add_generators(
+                res.standard_two_qubit_bitstrings_asymmetric(num_qubits, pairs=pairs))
             if len(res) != 2 * num_qubits ** 2:
                 raise ValueError('Should have gotten 2n^2 generators, got {}...'.format(len(res)))
         return res
@@ -274,7 +276,8 @@ class StandardGeneratorSet(BaseGeneratorSet):
         ))
         return rate
 
-    def _ctmp_err_rate_1_q(self, a: str, b: str, j: int, g_mat_dict: Dict[Generator, np.array]) -> float:
+    def _ctmp_err_rate_1_q(self, a: str, b: str, j: int,
+                           g_mat_dict: Dict[Generator, np.array]) -> float:
         rate_list = []
         if a == '0' and b == '1':
             g1 = ('00', '10')
@@ -450,7 +453,8 @@ class MeasurementCalibrator:
             r_min = np.min(list(self.r_dict.values()))
             r_max = np.max(list(self.r_dict.values()))
             r_mean = np.mean(list(self.r_dict.values()))
-            res += "gamma={}, r_mean={}\nr_min={}, r_max={}".format(self.gamma, r_mean, r_min, r_max)
+            res += "gamma={}, r_mean={}\nr_min={}, r_max={}".format(self.gamma, r_mean, r_min,
+                                                                    r_max)
         else:
             res += "Not yet calibrated"
         return res

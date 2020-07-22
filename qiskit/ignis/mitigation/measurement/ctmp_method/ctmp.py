@@ -119,7 +119,8 @@ def ctmp_a_inverse(
     return plus_dict, minus_dict
 
 
-def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[str, int], subset: List[int] = None,
+def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[str, int],
+                                subset: List[int] = None,
                                 mean_only: bool = True) -> float:
     """Given a counts dictionary corresponding to measuring an operator in the Pauli basis,
     apply the CTMP error mitigation algorithm to the result, and return the mitigated
@@ -170,7 +171,8 @@ def mitigated_expectation_value(cal: MeasurementCalibrator, counts_dict: Dict[st
         raise NotImplementedError('Variance is not implemented')
 
 
-def mitigated_expectation_values(cal: MeasurementCalibrator, counts_dict: Dict[str, int]) -> Dict[str, float]:
+def mitigated_expectation_values(cal: MeasurementCalibrator, counts_dict: Dict[str, int]) -> Dict[
+    str, float]:
     """Apply mitigation to counts dictionary with all combinations of qubits being measured.
     Mimics  `expectation_counts` in Ignis, but with mitigated expectation values.
 

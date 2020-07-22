@@ -137,7 +137,8 @@ def _multi_markov_chain_int(x_list, alpha_list, vals, indices, indptrs):
     return res
 
 
-def markov_chain_int(trans_mat: sparse.csc_matrix, x: Union[int, List[int]], alpha: Union[int, List[int]]) -> int:
+def markov_chain_int(trans_mat: sparse.csc_matrix, x: Union[int, List[int]],
+                     alpha: Union[int, List[int]]) -> int:
     """Apply simulate the Markov process for the transition matrix `trans_mat`.
 
     Args:
