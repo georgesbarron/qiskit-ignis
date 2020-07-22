@@ -16,18 +16,17 @@
 
 # pylint: disable=missing-function-docstring
 
+import logging
 from abc import abstractmethod
 from copy import deepcopy
 from itertools import combinations, product
-import logging
 from typing import List, Union, Tuple, Dict, Set
 
 import numpy as np
-from scipy.linalg import logm
-from scipy import sparse
-
 from qiskit import QuantumCircuit
 from qiskit.result import Result
+from scipy import sparse
+from scipy.linalg import logm
 
 logger = logging.getLogger(__name__)
 

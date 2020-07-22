@@ -19,14 +19,13 @@
 from collections import Counter
 from itertools import combinations
 from typing import List, Tuple, Dict, Union
+
 import numpy as np
+from qiskit.ignis.verification.tomography import marginal_counts
 from scipy import sparse
 
-
-from qiskit.ignis.verification.tomography import marginal_counts
 from .calibration import MeasurementCalibrator
 from .markov_compiled import markov_chain_int
-
 
 Generator = Tuple[str, str, List[int]]
 

@@ -16,6 +16,7 @@ CTMP measurement error mitigation generator.
 """
 
 from qiskit.circuit import QuantumCircuit
+
 from ..base_meas_mit_generator import BaseMeasureErrorMitigationGenerator
 
 
