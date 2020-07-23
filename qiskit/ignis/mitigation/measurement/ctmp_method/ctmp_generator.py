@@ -16,11 +16,13 @@ CTMP measurement error mitigation generator.
 """
 
 from qiskit.circuit import QuantumCircuit
+
 from ..base_meas_mit_generator import BaseMeasureErrorMitigationGenerator
 
 
 class CTMPMeasureErrorMitigationGenerator(BaseMeasureErrorMitigationGenerator):
     """CTMP measurement mitigation generator."""
+
     # pylint: disable=arguments-differ
 
     def __init__(self, num_qubits: int):
