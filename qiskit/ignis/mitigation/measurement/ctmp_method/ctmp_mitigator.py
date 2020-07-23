@@ -25,7 +25,7 @@ from .calibration import (
 from .ctmp import mitigated_expectation_value
 
 
-class ExpectationValueMeasurementErrorMitigator(BaseMeasureErrorMitigator):
+class CTMPMeasurementErrorMitigator(BaseMeasureErrorMitigator):
 
     def __init__(self, calibrator: MeasurementCalibrator):
         """Create the mitigator from a given `MeasurementCalibrator` object.
