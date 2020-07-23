@@ -254,6 +254,14 @@ class BaseGeneratorSet:
         rates for other generators.
         """
         pass
+    
+    @classmethod
+    def from_generator_list(cls, gen_list: List[Generator], num_qubits: int):
+        """Create from generator list, used for testing.
+        """
+        res = cls(num_qubits=num_qubits)
+        res.add_generators(gen_list=gen_list)
+        return res
 
 
 class StandardGeneratorSet(BaseGeneratorSet):
@@ -488,6 +496,14 @@ class BaseCalibrationCircuitSet:
         out = ['0'] * self.num_qubits
         out[index] = '1'
         return ''.join(out)[::-1]
+
+    @classmethod
+    def from_dict(cls, num_qubits: int, cal_circ_dict: Dict[str, QuantumCircuit]):
+        """Construct a circuit set from a dict, used for testing.
+        """
+        res = cls(num_qubits)
+        res.cal_circ_dict = cal_circ_dict
+        return res
 
 
 class StandardCalibrationCircuitSet(BaseCalibrationCircuitSet):
