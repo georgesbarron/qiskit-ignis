@@ -1,36 +1,9 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=empty-docstring
-# pylint: disable=missing-class-docstring
-# pylint: disable=trailing-whitespace
-# pylint: disable=logging-format-interpolation
-# pylint: disable=line-too-long
-# pylint: disable=unnecessary-lambda
-# pylint: disable=invalid-name
-
-# pylint: disable=missing-function-docstring
-# pylint: disable=unused-variable
-# pylint: disable=unused-import
-# pylint: disable=unused-wildcard-import
-# pylint: disable=wildcard-import
-
 import unittest
-from time import time
-from collections import Counter
-from itertools import product
 
-import numpy as np
 import scipy as sp
+from qiskit.ignis.mitigation.measurement.ctmp_method.markov_compiled import *
+from qiskit.ignis.mitigation.measurement.ctmp_method import *
 
-from qiskit import Aer, QuantumCircuit, QuantumRegister
-from qiskit import execute, IBMQ
-from qiskit.ignis.verification.entanglement.analysis import composite_pauli_z_expvalue
-from qiskit.ignis.verification.tomography.data import expectation_counts
-from qiskit.ignis.utils import build_counts_dict_from_list
-from qiskit.providers.aer.noise import NoiseModel, ReadoutError
-from qiskit.quantum_info import Operator
-from qiskit.test.mock import FakeJohannesburg
-
-from mitigation.ignis import *
 
 # pylint disable=bare-except
 
@@ -44,22 +17,23 @@ def statistical_test(num_tests: int, fraction_passes: float):
                 try:
                     func(*args, **kwargs)
                     num_passes += 1
-                except: 
+                except:
                     num_failures += 1
             if num_passes / num_tests < fraction_passes:
                 raise ValueError('Passed {} out of {} trials, needed {}%'.format(
                     num_passes,
                     num_tests,
-                    100*fraction_passes
+                    100 * fraction_passes
                 ))
+
         return wrapper_func
+
     return stat_test
 
 
 class TestMarkov(unittest.TestCase):
 
     def setUp(self):
-
         self.lo = 0.1
         self.hi = 1.0 - self.lo
 
@@ -81,7 +55,7 @@ class TestMarkov(unittest.TestCase):
         self.B = sp.linalg.expm(self.G)
 
         self.num_steps = 100
-    
+
     @statistical_test(50, 0.7)
     def test_markov_chain_int_0(self):
         y = markov_chain_int(self.B, 0, self.num_steps)

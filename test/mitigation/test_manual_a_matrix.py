@@ -1,43 +1,18 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=empty-docstring
-# pylint: disable=missing-class-docstring
-# pylint: disable=trailing-whitespace
-# pylint: disable=logging-format-interpolation
-# pylint: disable=line-too-long
-# pylint: disable=unnecessary-lambda
-# pylint: disable=invalid-name
-
-# pylint: disable=missing-function-docstring
-# pylint: disable=unused-variable
-# pylint: disable=unused-import
-# pylint: disable=unused-wildcard-import
-# pylint: disable=wildcard-import
-
 import unittest
-from time import time
-from typing import Dict
-from collections import Counter
 from itertools import product
+from typing import Dict
 
 import numpy as np
 import scipy as sp
-
-from qiskit import Aer, QuantumCircuit, QuantumRegister
-from qiskit import execute, IBMQ
-from qiskit.ignis.verification.entanglement.analysis import composite_pauli_z_expvalue
-from qiskit.ignis.verification.tomography.data import expectation_counts
-from qiskit.ignis.utils import build_counts_dict_from_list
-from qiskit.providers.aer.noise import NoiseModel, ReadoutError
-from qiskit.quantum_info import Operator
-from qiskit.test.mock import FakeJohannesburg
-
+from qiskit import Aer
+from qiskit import execute
 from qiskit.ignis.mitigation.measurement.ctmp_method import *
 from qiskit.ignis.mitigation.measurement.ctmp_method.calibration import (
     BaseCalibrationCircuitSet,
     BaseGeneratorSet,
     Generator
 )
-
+from qiskit.providers.aer.noise import ReadoutError
 
 
 def my_expm(mat: np.array, order: int = 200) -> np.array:
@@ -62,7 +37,7 @@ def compute_a_matrix(num_qubits: int, exec_opts: dict, err: ReadoutError = None)
 
     res = execute(circs, **exec_opts).result()
 
-    A = np.zeros((2**num_qubits, 2**num_qubits))
+    A = np.zeros((2 ** num_qubits, 2 ** num_qubits))
     for b_in, b_out in product(bitstrings, repeat=2):
         counts = res.get_counts('cal-{}'.format(b_in))
         shots = np.sum(list(counts.values()))
@@ -85,7 +60,7 @@ def noise_matrix_test(noise_mat, exec_opts, num_qubits):
     cal.calibrate(cal_res)
     G = cal.total_g_matrix(cal.r_dict).toarray()
     A_empirical = sp.linalg.expm(G)
-    #A_empirical = my_expm(G)
+    # A_empirical = my_expm(G)
     dist = np.linalg.norm(A - A_empirical)
 
     return {
@@ -99,12 +74,11 @@ def noise_matrix_test(noise_mat, exec_opts, num_qubits):
 
 
 class TestCompareAMatrixGeneration(unittest.TestCase):
-
     backend = Aer.get_backend('qasm_simulator')
     num_qubits = 2
     exec_opts = {
         'backend': backend,
-        'shots': 2**18
+        'shots': 2 ** 18
     }
     eps = 1e-2
     eps_0 = 1e-5
@@ -120,7 +94,7 @@ class Test_2(TestCompareAMatrixGeneration):
     def setUp(self):
         self.res = None
         self.noise_mat = None
-    
+
     def tearDown(self):
         self.res = noise_matrix_test(self.noise_mat, self.exec_opts, self.num_qubits)
         dist = self.dist(self.res['A_empirical'], self.res['A'])
@@ -133,9 +107,9 @@ class Test_2(TestCompareAMatrixGeneration):
     def test_uniform_noise(self):
         noise_mat = np.ones((4, 4)) * self.eps
         for i in range(4):
-            noise_mat[i, i] = 1 - self.eps * (4-1)
+            noise_mat[i, i] = 1 - self.eps * (4 - 1)
         self.noise_mat = noise_mat
-    
+
     def test_symmetric_correlated_noise(self):
         noise_mat = np.eye(4)
         noise_mat[0, 0] -= self.eps
@@ -143,16 +117,16 @@ class Test_2(TestCompareAMatrixGeneration):
         noise_mat[0, 3] += self.eps
         noise_mat[3, 0] += self.eps
         self.noise_mat = noise_mat
-    
+
     def test_symmetric_uncorrelated_noise(self):
         noise_mat = np.eye(2)
-        noise_mat[0, 0] = 1-self.eps
+        noise_mat[0, 0] = 1 - self.eps
         noise_mat[0, 1] = self.eps
         noise_mat[1, 0] = self.eps
-        noise_mat[1, 1] = 1-self.eps
+        noise_mat[1, 1] = 1 - self.eps
         noise_mat = np.kron(noise_mat, noise_mat)
         self.noise_mat = noise_mat
-    
+
     def test_asymmetric_correlated_noise(self):
         noise_mat = np.eye(4)
         noise_mat[0, 0] -= self.eps_0
@@ -163,16 +137,16 @@ class Test_2(TestCompareAMatrixGeneration):
 
     def test_asymmetric_uncorrelated_noise(self):
         noise_mat_0 = np.eye(2)
-        noise_mat_0[0, 0] = 1-self.eps_0
+        noise_mat_0[0, 0] = 1 - self.eps_0
         noise_mat_0[0, 1] = self.eps_0
         noise_mat_0[1, 0] = self.eps_0
-        noise_mat_0[1, 1] = 1-self.eps_0
+        noise_mat_0[1, 1] = 1 - self.eps_0
 
         noise_mat_1 = np.eye(2)
-        noise_mat_1[0, 0] = 1-self.eps_1
+        noise_mat_1[0, 0] = 1 - self.eps_1
         noise_mat_1[0, 1] = self.eps_1
         noise_mat_1[1, 0] = self.eps_1
-        noise_mat_1[1, 1] = 1-self.eps_1
+        noise_mat_1[1, 1] = 1 - self.eps_1
 
         noise_mat = np.kron(noise_mat_1, noise_mat_0)
         self.noise_mat = noise_mat
@@ -183,19 +157,19 @@ def compare_a_matrix_methods(
         cir_set: BaseCalibrationCircuitSet,
         num_qubits: int,
         exec_opts: Dict
-    ):
+):
     # Determine A from generators
     gen_set = list(r_dict.keys())
     gen_set = BaseGeneratorSet.from_generator_list(gen_set, num_qubits)
     cal = MeasurementCalibrator(cir_set, gen_set)
     G = cal.total_g_matrix(r_dict).toarray()
     A = sp.linalg.expm(G)
-    #A = my_expm(G)
+    # A = my_expm(G)
 
     # Determine A from noise matrix
     ro_error = ReadoutError(A)
     A_empirical, _, _ = compute_a_matrix(num_qubits, exec_opts, err=ro_error)
-    dist = np.linalg.norm(A-A_empirical)
+    dist = np.linalg.norm(A - A_empirical)
 
     return {
         'A': A,
@@ -212,7 +186,8 @@ class Test_1(TestCompareAMatrixGeneration):
         self.res = None
 
     def tearDown(self):
-        self.res = compare_a_matrix_methods(self.r_dict, self.cir_set, self.num_qubits, self.exec_opts)
+        self.res = compare_a_matrix_methods(self.r_dict, self.cir_set, self.num_qubits,
+                                            self.exec_opts)
         dist = self.dist(self.res['A'], self.res['A_empirical'])
         np.testing.assert_array_almost_equal(
             self.res['A_empirical'],
@@ -235,7 +210,7 @@ class Test_1(TestCompareAMatrixGeneration):
             ('1', '0', (1,)): self.eps_1,
             ('0', '1', (1,)): self.eps_1,
         }
-    
+
     def test_1_two_qubit_symmetric(self):
         self.r_dict = {
             ('11', '00', (0, 1)): self.eps,
@@ -251,7 +226,7 @@ class Test_1(TestCompareAMatrixGeneration):
             ('10', '01', (0, 1)): self.eps_1,
             ('10', '01', (1, 0)): self.eps_1
         }
-    
+
     def test_3_all(self):
         self.r_dict = {
             ('1', '0', (0,)): self.eps,

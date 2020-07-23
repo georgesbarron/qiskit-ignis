@@ -1,31 +1,19 @@
-# pylint: disable=invalid-name
-# pylint: disable=using-constant-test
-# pylint: disable=unused-wildcard-import
-# pylint: disable=wildcard-import
-# pylint: disable=line-too-long
-# pylint: disable=missing-function-docstring
-# pylint: disable=missing-class-docstring
-# pylint: disable=trailing-whitespace
-# pylint: disable=unused-variable
-
-from itertools import product
 import unittest
+from itertools import product
 from typing import List
 
-import numpy as np
 import networkx as nx
+import numpy as np
 import scipy as sp
-
 from qiskit import execute, Aer, QuantumCircuit, QuantumRegister
-from qiskit.result import Result
-from qiskit.providers.aer.noise.errors import ReadoutError
-from qiskit.ignis.verification.tomography.data import expectation_counts
 from qiskit.ignis.mitigation.measurement.ctmp_method import *
+from qiskit.ignis.verification.tomography.data import expectation_counts
+from qiskit.providers.aer.noise.errors import ReadoutError
 from qiskit.quantum_info.operators import SparsePauliOp
+from qiskit.result import Result
 
 
 class NoisyTest(unittest.TestCase):
-
     backend = Aer.get_backend('qasm_simulator')
     exec_opts = {
         'backend': backend,
@@ -45,12 +33,12 @@ class NoisyTest(unittest.TestCase):
         self.cal.calibrate(cal_res)
         r_dict = self.cal.r_dict
         gamma = self.cal.gamma
-    
+
     def run_circs(self, circs: List[QuantumCircuit]) -> Result:
-        #circs_ = deepcopy(circs)
+        # circs_ = deepcopy(circs)
         self.apply_ro_errors(circs, lo=self.lo, hi=self.hi)
         return execute(circs, **self.exec_opts).result()
-    
+
     @staticmethod
     def get_2q_ro_error(err_rate: float) -> ReadoutError:
         r_dict = {}
@@ -66,7 +54,7 @@ class NoisyTest(unittest.TestCase):
         A = sp.linalg.expm(G)
         ro_error = ReadoutError(A)
         return ro_error
-    
+
     @staticmethod
     def get_1q_ro_error(err_rate: float) -> ReadoutError:
         _gen_set = StandardGeneratorSet.from_num_qubits(1)
@@ -82,36 +70,35 @@ class NoisyTest(unittest.TestCase):
         A = sp.linalg.expm(G)
         ro_error = ReadoutError(A)
         return ro_error
-    
+
     def apply_ro_errors(self, circs: List[QuantumCircuit], lo: float, hi: float):
         for circ in circs:
             self.apply_ro_error_ind(circ, lo=lo, hi=hi)
-    
+
     def apply_ro_error_ind(self, circ: QuantumCircuit, lo: float, hi: float):
         num_qubits = len(circ.qregs[0])
         ro_error_1q = self.get_1q_ro_error(hi)
         ro_error_2q = self.get_2q_ro_error(lo)
         for i in range(num_qubits):
             circ.append(ro_error_1q, cargs=[i])
-        
+
         for i, j in product(range(num_qubits), repeat=2):
             if i != j:
                 circ.append(ro_error_2q, cargs=[i, j])
 
 
 class ParityTest(NoisyTest):
-
     num_qubits = 4
 
     @staticmethod
     def str_par(s: str) -> int:
-        return (-1)**(s.count('1'))
-    
+        return (-1) ** (s.count('1'))
+
     @staticmethod
     def get_rand_bits(num_qubits: int):
         rand_bits = ''.join(np.random.choice(['0', '1'], replace=True, size=num_qubits))
         return rand_bits
-    
+
     @staticmethod
     def bits_to_circ(bitstring: str) -> QuantumCircuit:
         num_qubits = len(bitstring)
@@ -130,7 +117,7 @@ class ParityTest(NoisyTest):
         counts = result.get_counts(circ)
 
         shots = np.sum(list(counts.values()))
-        raw_exp_val = expectation_counts(counts)['1'*self.num_qubits] / shots
+        raw_exp_val = expectation_counts(counts)['1' * self.num_qubits] / shots
         mit_exp_val = mitigated_expectation_value(self.cal, counts)
         ex_par = self.str_par(bitstring)
 
@@ -139,7 +126,6 @@ class ParityTest(NoisyTest):
 
 
 class TestExpValSymmetric(NoisyTest):
-
     num_qubits = 2
 
     op = SparsePauliOp.from_list([('XX', 1.0), ('YY', 1.0), ('ZZ', 1.0)])
@@ -151,14 +137,14 @@ class TestExpValSymmetric(NoisyTest):
     """Waiting on these tests until the generator/mitigator framework
     is finalized.
     """
-    #def test_exp_val_end_to_end_no_mit(self):
+    # def test_exp_val_end_to_end_no_mit(self):
     #    gen = ExpValGenerator(self.op)
     #    fit = ExpValFitter(self.op)
     #    result = self.run_circs(gen.generate_circuits(self.circ))
     #    mean, _ = fit.exp_val(result)
     #    self.assertEqual(self.exact_exp_val, mean)
-    
-    #def test_exp_val_end_to_end_with_mit(self):
+
+    # def test_exp_val_end_to_end_with_mit(self):
     #    gen = CTMPExpValGenerator(self.op)
     #    fit = CTMPExpValFitter(self.op)
     #    result = self.run_circs(gen.generate_circuits(self.circ))
@@ -167,7 +153,6 @@ class TestExpValSymmetric(NoisyTest):
 
 
 class TestExpValAsymmetric(NoisyTest):
-
     num_qubits = 4
     graph = nx.generators.classic.cycle_graph(4)
     num_qubits = len(graph)
@@ -182,21 +167,22 @@ class TestExpValAsymmetric(NoisyTest):
     """Waiting on these tests until the generator/mitigator framework
     is finalized.
     """
-    #def test_exp_val_end_to_end_no_mit(self):
+    # def test_exp_val_end_to_end_no_mit(self):
     #    gen = ExpValGenerator(self.op)
     #    fit = ExpValFitter(self.op)
     #    result = self.run_circs(gen.generate_circuits(self.circ))
     #    mean, _ = fit.exp_val(result)
     #    self.assertEqual(self.exact_exp_val, mean)
     #    pass
-    
-    #def test_a_exp_val_end_to_end_with_mit(self):
+
+    # def test_a_exp_val_end_to_end_with_mit(self):
     #    gen = CTMPExpValGenerator(self.op)
     #    fit = CTMPExpValFitter(self.op)
     #    result = self.run_circs(gen.generate_circuits(self.circ))
     #    mean, _ = fit.exp_val(result)
     #    self.assertEqual(self.exact_exp_val, mean)
     #    pass
+
 
 if __name__ == '__main__':
     unittest.main()
