@@ -293,7 +293,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
             pairs = list(combinations(range(num_qubits), r=2))
         res = [('11', '00', (i, j)) for i, j in pairs if i < j]
         res += [('00', '11', (i, j)) for i, j in pairs if i < j]
-        if len(res) != num_qubits * (num_qubits - 1) and (pairs is None):
+        if len(res) != num_qubits * (num_qubits - 1):
             raise ValueError('Should have gotten n(n-1) qubits, got {}'.format(len(res)))
         return res
 
