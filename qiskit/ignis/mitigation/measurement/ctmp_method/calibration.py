@@ -293,7 +293,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
             pairs = list(combinations(range(num_qubits), r=2))
         res = [('11', '00', (i, j)) for i, j in pairs if i < j]
         res += [('00', '11', (i, j)) for i, j in pairs if i < j]
-        if len(res) != num_qubits * (num_qubits - 1):
+        if len(res) != num_qubits * (num_qubits - 1) and (pairs is None):
             raise ValueError('Should have gotten n(n-1) qubits, got {}'.format(len(res)))
         return res
 
@@ -672,7 +672,7 @@ class MeasurementCalibrator:
             circ_dicts[bits] = result.get_counts(circ)
         return circ_dicts
 
-    def calibrate(self, result: Result) -> Tuple[float, Dict[Generator, float]]:
+    def calibrate(self, result: Result, disp: bool = False) -> Tuple[float, Dict[Generator, float]]:
         """Perform the CTMP calibration given a result.
 
         Args:
@@ -691,12 +691,16 @@ class MeasurementCalibrator:
         circ_dicts = self.circ_dicts(result)
         for gen in list(self.gen_set) + self.gen_set.supplementary_generators(list(self.gen_set)):
             if len(gen[2]) > 1:
+                if disp:
+                    print(f'Computing G(j,k) for {gen}')
                 mat = self.gen_set.local_g_matrix(gen, circ_dicts)
                 gen_mat_dict[gen] = mat
         logger.info('Computed local G matrices')
         # Compute r-parameters
         logger.info('Computing generator coefficients...')
         for gen in self.gen_set:
+            if disp:
+                    print(f'Computing r_i for {gen}')
             r = self.gen_set.get_ctmp_error_rate(gen, gen_mat_dict)
             self._r_dict[gen] = r
             logger.info('Generator G={} has error rate r={}'.format(gen, r))
