@@ -180,7 +180,7 @@ def local_a_matrix(j: int, k: int, counts_dicts: Dict[str, Dict[str, int]]) -> n
     #if j == k:
     #    raise ValueError('Encountered j=k={}'.format(j))
     a_out = np.zeros((4, 4))
-    indices = ['00', '01', '10', '11']
+    indices = [[0, 0], [0, 1], [1, 0], [1, 1]]
     for w in indices:
         for v in indices:
             v_to_w_err_cts = 0
@@ -694,15 +694,17 @@ class MeasurementCalibrator:
             circ_dicts = numba.typed.Dict()
         else:
             circ_dicts = {}
+        def _bsa(v: str):
+            return tuple(map(int, list(v)))
         for bits, circ in self.cal_circ_set.cal_circ_dict.items():
             if USE_NUMBA:
                 cd = result.get_counts(circ)
                 cd_out = numba.typed.Dict()
                 for k, v in cd.items():
-                    cd_out[k] = v
-                circ_dicts[bits] = cd_out
+                    cd_out[_bsa(k)] = v
+                circ_dicts[_bsa(bits)] = cd_out
             else:
-                circ_dicts[bits] = result.get_counts(circ)
+                circ_dicts[_bsa(bits)] = {_bsa(k): v for k, v in result.get_counts(circ).items()}
         return circ_dicts
 
     def calibrate(self, result: Result, disp: bool = False) -> Tuple[float, Dict[Generator, float]]:
