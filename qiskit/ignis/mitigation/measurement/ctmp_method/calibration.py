@@ -31,6 +31,24 @@ from qiskit.result import Result
 
 logger = logging.getLogger(__name__)
 
+try:
+    import numba
+
+    USE_NUMBA = False
+except ImportError:
+    USE_NUMBA = False
+    logger.info('Numba not installed, for faster mitigation install numba'
+                'https://pypi.org/project/numba/')
+
+
+def jit_fallback(func):
+    """Decorator to try to apply numba JIT compilation.
+    """
+    if USE_NUMBA:
+        return numba.jit(nopython=True)(func)
+    else:
+        return func
+
 """Generators are uniquely determined by two bitstrings,
 and a list of qubits on which the bitstrings act. For instance,
 the generator `|b^i><a^i| - |a^i><a^i|` acting on the (ordered)
@@ -83,7 +101,8 @@ def generator_to_sparse_matrix(gen: Generator, num_qubits: int) -> sparse.coo_ma
     return res
 
 
-def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
+@jit_fallback
+def match_on_set(str_1: str, str_2: str, qubits: np.array) -> bool:
     """Ask whether or not two bitstrings are equal on a set of bits.
 
     Args:
@@ -98,15 +117,14 @@ def match_on_set(str_1: str, str_2: str, qubits: Set[int]) -> bool:
         ValueError: When the strings do not have equal length.
     """
     num_qubits = len(str_1)
-    if len(str_1) != len(str_2):
-        raise ValueError('Strings must have same length')
-    q_inds = [num_qubits - i - 1 for i in qubits]
+    q_inds = num_qubits - 1 - qubits
     for i in q_inds:
         if str_1[i] != str_2[i]:
             return False
     return True
 
 
+@jit_fallback
 def no_error_out_set(
         in_set: Set[int],
         counts_dict: Dict[str, int],
@@ -119,6 +137,8 @@ def no_error_out_set(
     output_dict = {}
     num_qubits = len(input_state)
     out_set = set(range(num_qubits)) - in_set
+    out_set = list(out_set)
+    out_set = np.array(out_set)
     for output_state, counts in counts_dict.items():
         if match_on_set(output_state, input_state, out_set):
             output_dict[output_state] = counts
@@ -152,26 +172,29 @@ def compute_gamma(g_matrix: sparse.coo_matrix) -> float:
     return current_max
 
 
+@jit_fallback
 def local_a_matrix(j: int, k: int, counts_dicts: Dict[str, Dict[str, int]]) -> np.array:
     """Computes the A(j,k) matrix in the basis:
     00, 01, 10, 11
     """
-    if j == k:
-        raise ValueError('Encountered j=k={}'.format(j))
+    #if j == k:
+    #    raise ValueError('Encountered j=k={}'.format(j))
     a_out = np.zeros((4, 4))
     indices = ['00', '01', '10', '11']
-    index_dict = {b: int(b, 2) for b in indices}
-    for w, v in product(indices, repeat=2):
-        v_to_w_err_cts = 0
-        tot_cts = 0
-        for input_str, c_dict in counts_dicts.items():
-            if input_str[::-1][j] == v[0] and input_str[::-1][k] == v[1]:
-                no_err_out_dict = no_error_out_set({j, k}, c_dict, input_str)
-                tot_cts += np.sum(list(no_err_out_dict.values()))
-                for output_str, counts in no_err_out_dict.items():
-                    if output_str[::-1][j] == w[0] and output_str[::-1][k] == w[1]:
-                        v_to_w_err_cts += counts
-        a_out[index_dict[w], index_dict[v]] = v_to_w_err_cts / tot_cts
+    for w in indices:
+        for v in indices:
+            v_to_w_err_cts = 0
+            tot_cts = 0
+            for input_str, c_dict in counts_dicts.items():
+                if input_str[::-1][j] == v[0] and input_str[::-1][k] == v[1]:
+                    no_err_out_dict = no_error_out_set({j, k}, c_dict, input_str)
+                    tot_cts += np.sum(np.array(list(no_err_out_dict.values())))
+                    for output_str, counts in no_err_out_dict.items():
+                        if output_str[::-1][j] == w[0] and output_str[::-1][k] == w[1]:
+                            v_to_w_err_cts += counts
+            a_w_ind = indices.index(w)
+            a_v_ind = indices.index(v)
+            a_out[a_w_ind, a_v_ind] = v_to_w_err_cts / tot_cts
     return a_out
 
 
@@ -254,7 +277,7 @@ class BaseGeneratorSet:
         rates for other generators.
         """
         pass
-    
+
     @classmethod
     def from_generator_list(cls, gen_list: List[Generator], num_qubits: int):
         """Create from generator list, used for testing.
@@ -667,9 +690,19 @@ class MeasurementCalibrator:
             Dict[str, Dict[str, int]]: The dictionary whose keys are the prepared bitstrings and
                 keys are the counts dictionaries for each bitstring.
         """
-        circ_dicts = {}
+        if USE_NUMBA:
+            circ_dicts = numba.typed.Dict()
+        else:
+            circ_dicts = {}
         for bits, circ in self.cal_circ_set.cal_circ_dict.items():
-            circ_dicts[bits] = result.get_counts(circ)
+            if USE_NUMBA:
+                cd = result.get_counts(circ)
+                cd_out = numba.typed.Dict()
+                for k, v in cd.items():
+                    cd_out[k] = v
+                circ_dicts[bits] = cd_out
+            else:
+                circ_dicts[bits] = result.get_counts(circ)
         return circ_dicts
 
     def calibrate(self, result: Result, disp: bool = False) -> Tuple[float, Dict[Generator, float]]:
