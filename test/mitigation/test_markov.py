@@ -18,12 +18,8 @@ CTMP markov sampling tests
 import unittest
 
 import scipy as sp
-from qiskit.ignis.mitigation.measurement.ctmp_method.markov_compiled import (
-    markov_chain_int
-)
-from qiskit.ignis.mitigation.measurement.ctmp_method.calibration import (
-    StandardGeneratorSet, MeasurementCalibrator
-)
+from qiskit.ignis.mitigation.measurement.ctmp_method.markov_compiled import markov_chain_int
+from qiskit.ignis.mitigation.measurement import CTMPMeasMitigator
 
 
 def statistical_test(num_tests: int, fraction_passes: float):
@@ -69,10 +65,14 @@ class TestMarkov(unittest.TestCase):
             ('01', '10', (0, 1)): 1e-3,
             ('10', '01', (0, 1)): 1e-3
         }
-        gen_set = StandardGeneratorSet.from_num_qubits(2)
 
-        self.G = MeasurementCalibrator(None, gen_set).total_g_matrix(self.r_dict).toarray()
-        self.B = sp.linalg.expm(self.G)
+        mitigator = CTMPMeasMitigator(
+            generators=self.r_dict.keys(),
+            rates=self.r_dict.values(),
+            num_qubits=2
+            )
+        mitigator._compute_g_mat()
+        self.B = sp.linalg.expm(mitigator._g_mat)
 
         self.num_steps = 100
 
