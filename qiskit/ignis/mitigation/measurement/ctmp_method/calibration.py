@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 try:
     import numba
 
-    USE_NUMBA = False
+    USE_NUMBA = True
 except ImportError:
     USE_NUMBA = False
     logger.info('Numba not installed, for faster mitigation install numba'
@@ -173,25 +173,48 @@ def compute_gamma(g_matrix: sparse.coo_matrix) -> float:
 
 
 @jit_fallback
-def local_a_matrix(j: int, k: int, counts_dicts: Dict[str, Dict[str, int]]) -> np.array:
+def _fast_no_error_out_set(
+        in_set: Set[int],
+        counts_dict: Dict[int, int],
+        input_state: int,
+        num_qubits: int
+    ) -> Dict[int, int]:
+
+    out_mask = 0
+    out_set = set(range(num_qubits)) - set(in_set)
+    for i in out_set:
+        out_mask += 1 << i
+    output_dict = {}
+    for bits, cts in counts_dict.items():
+        if (out_mask & bits) == (out_mask & input_state):
+            output_dict[bits] = cts
+    return output_dict
+
+@jit_fallback
+def get_k_bit(n: int, k: int) -> int:
+    ans = (n & (1 << (k))) != 0
+    return int(ans)
+
+@jit_fallback
+def local_a_matrix(j: int, k: int, counts_dicts: Dict[int, Dict[int, int]], num_qubits: int) -> np.array:
     """Computes the A(j,k) matrix in the basis:
     00, 01, 10, 11
     """
-    #if j == k:
-    #    raise ValueError('Encountered j=k={}'.format(j))
     a_out = np.zeros((4, 4))
     indices = [[0, 0], [0, 1], [1, 0], [1, 1]]
     for w in indices:
         for v in indices:
             v_to_w_err_cts = 0
             tot_cts = 0
-            for input_str, c_dict in counts_dicts.items():
-                if input_str[::-1][j] == v[0] and input_str[::-1][k] == v[1]:
-                    no_err_out_dict = no_error_out_set({j, k}, c_dict, input_str)
+
+            for input_int, c_dict in counts_dicts.items():
+                if get_k_bit(input_int, j) == v[0] and get_k_bit(input_int, k) == v[1]:
+                    no_err_out_dict = _fast_no_error_out_set({j, k}, c_dict, input_int, num_qubits)
                     tot_cts += np.sum(np.array(list(no_err_out_dict.values())))
-                    for output_str, counts in no_err_out_dict.items():
-                        if output_str[::-1][j] == w[0] and output_str[::-1][k] == w[1]:
+                    for output_int, counts in no_err_out_dict.items():
+                        if get_k_bit(output_int, j) == w[0] and get_k_bit(output_int, k) == w[1]:
                             v_to_w_err_cts += counts
+            
             a_w_ind = indices.index(w)
             a_v_ind = indices.index(v)
             a_out[a_w_ind, a_v_ind] = v_to_w_err_cts / tot_cts
@@ -446,7 +469,7 @@ class StandardGeneratorSet(BaseGeneratorSet):
         """
         _, _, c = gen
         j, k = c
-        a = local_a_matrix(j, k, counts_dicts)
+        a = local_a_matrix(j, k, counts_dicts, self.num_qubits)
         g = self.amat_to_gmat(a)
         if np.linalg.norm(np.imag(g)) > 1e-3:
             raise ValueError('Encountered complex entries in G_i={}'.format(g))
@@ -695,7 +718,8 @@ class MeasurementCalibrator:
         else:
             circ_dicts = {}
         def _bsa(v: str):
-            return tuple(map(int, list(v)))
+            return int(v, 2)
+            #return tuple(map(int, list(v)))
         for bits, circ in self.cal_circ_set.cal_circ_dict.items():
             if USE_NUMBA:
                 cd = result.get_counts(circ)
@@ -707,7 +731,7 @@ class MeasurementCalibrator:
                 circ_dicts[_bsa(bits)] = {_bsa(k): v for k, v in result.get_counts(circ).items()}
         return circ_dicts
 
-    def calibrate(self, result: Result, disp: bool = False) -> Tuple[float, Dict[Generator, float]]:
+    def calibrate(self, result: Result, disp: bool = False, skip_mats: bool = False) -> Tuple[float, Dict[Generator, float]]:
         """Perform the CTMP calibration given a result.
 
         Args:
@@ -741,6 +765,9 @@ class MeasurementCalibrator:
             logger.info('Generator G={} has error rate r={}'.format(gen, r))
         logger.info('Computed generator coefficients')
         # Compute gamma
+        if skip_mats:
+            self.calibrated = True
+            return (None, self.r_dict)
         self._tot_g_mat = self.total_g_matrix(self._r_dict)
         self._gamma = compute_gamma(self._tot_g_mat)
         self._b_mat = sparse.eye(2 ** self._num_qubits) + self._tot_g_mat / self._gamma
