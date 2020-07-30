@@ -254,6 +254,7 @@ class BaseGeneratorSet:
         rates for other generators.
         """
         pass
+
     
     @classmethod
     def from_generator_list(cls, gen_list: List[Generator], num_qubits: int):
