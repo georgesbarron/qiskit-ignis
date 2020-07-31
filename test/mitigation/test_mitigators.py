@@ -42,7 +42,7 @@ class NoisySimulationTest(unittest.TestCase):
     # Create readout errors
     readout_errors = []
     for i in range(num_qubits):
-        p_error1 = (i + 1) * 0.02
+        p_error1 = (i + 1) * 0.002
         p_error0 = 2 * p_error1
         ro_error = noise.ReadoutError([[1 - p_error0, p_error0], [p_error1, 1 - p_error1]])
         readout_errors.append(ro_error)
