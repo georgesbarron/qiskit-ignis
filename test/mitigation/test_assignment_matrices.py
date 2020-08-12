@@ -42,9 +42,14 @@ _PAIRINGS = [
 
 @ddt
 class TestMatrices(NoisySimulationTest):
+    """Test that assignment matrices are computed correctly (close to identity)
+    and produce correct expectation values.
+    """
 
     @lru_cache(6)
     def get_mitigator(self, method: str, noise_model: bool):
+        """Return the mitigator for the given parameters.
+        """
         circs, meta, _ = MeasMitigatorGenerator(self.num_qubits, method=method).run()
         cal_res = self.execute_circs(circs, noise_model=self.noise_model if noise_model else None)
         mitigator = MeasMitigatorFitter(cal_res, meta).fit(method=method)
@@ -53,6 +58,8 @@ class TestMatrices(NoisySimulationTest):
     @data(*_PAIRINGS)
     @unpack
     def test_matrices(self, method: str, qubits: List[int], noise: bool):
+        """Compute and compare matrices with given options.
+        """
         if qubits is not None:
             num_qubits = len(qubits)
         else:
@@ -87,6 +94,9 @@ class TestMatrices(NoisySimulationTest):
     )
     @unpack
     def test_parity_exp_vals_partial(self, method: str, bitstr: str, qubits: List[int]):
+        """Compute expectation value of parity operators and
+        compare with exact result.
+        """
         mitigator = self.get_mitigator(method, True)
 
         if qubits is None:
