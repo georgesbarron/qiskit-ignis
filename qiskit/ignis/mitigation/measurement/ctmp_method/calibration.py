@@ -214,7 +214,7 @@ def local_a_matrix(j: int, k: int, counts_dicts: Dict[int, Dict[int, int]], num_
                     for output_int, counts in no_err_out_dict.items():
                         if get_k_bit(output_int, j) == w[0] and get_k_bit(output_int, k) == w[1]:
                             v_to_w_err_cts += counts
-            
+
             a_w_ind = indices.index(w)
             a_v_ind = indices.index(v)
             a_out[a_w_ind, a_v_ind] = v_to_w_err_cts / tot_cts
@@ -627,6 +627,7 @@ class MeasurementCalibrator:
         self._r_dict = {}  # type: Dict[Generator, float]
         self._tot_g_mat = None
         self._b_mat = None
+        self._circ_dicts = None
         self.calibrated = False
 
     @classmethod
@@ -713,6 +714,8 @@ class MeasurementCalibrator:
             Dict[str, Dict[str, int]]: The dictionary whose keys are the prepared bitstrings and
                 keys are the counts dictionaries for each bitstring.
         """
+        if self._circ_dicts is not None:
+            return self._circ_dicts
         if USE_NUMBA:
             circ_dicts = numba.typed.Dict()
         else:
@@ -729,6 +732,7 @@ class MeasurementCalibrator:
                 circ_dicts[_bsa(bits)] = cd_out
             else:
                 circ_dicts[_bsa(bits)] = {_bsa(k): v for k, v in result.get_counts(circ).items()}
+        self._circ_dicts = circ_dicts
         return circ_dicts
 
     def calibrate(self, result: Result, disp: bool = False, skip_mats: bool = False) -> Tuple[float, Dict[Generator, float]]:
