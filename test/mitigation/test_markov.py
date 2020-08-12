@@ -23,6 +23,9 @@ from qiskit.ignis.mitigation.measurement import CTMPMeasMitigator
 
 
 def statistical_test(num_tests: int, fraction_passes: float):
+    """Wrapper for statistical test that should be run multiple times and pass
+    at least a certain fraction of times.
+    """
     # pylint: disable=bare-except
     def stat_test(func):
         def wrapper_func(*args, **kwargs):
@@ -48,11 +51,10 @@ def statistical_test(num_tests: int, fraction_passes: float):
 
 
 class TestMarkov(unittest.TestCase):
+    """Test the (un)compiled markov process simulator
+    """
 
     def setUp(self):
-        self.lo = 0.1
-        self.hi = 1.0 - self.lo
-
         self.r_dict = {
             # (final, start, qubits)
             ('0', '1', (0,)): 1e-3,
@@ -72,28 +74,32 @@ class TestMarkov(unittest.TestCase):
             num_qubits=2
             )
         mitigator._compute_g_mat()
-        self.B = sp.linalg.expm(mitigator._g_mat)
+        self.trans_mat = sp.linalg.expm(mitigator._g_mat)
 
         self.num_steps = 100
 
     @statistical_test(50, 0.7)
     def test_markov_chain_int_0(self):
-        y = markov_chain_int(self.B, 0, self.num_steps)
+        """Test markov process starting at specific state"""
+        y = markov_chain_int(self.trans_mat, 0, self.num_steps)
         self.assertEqual(y, 3)
 
     @statistical_test(50, 0.7)
     def test_markov_chain_int_1(self):
-        y = markov_chain_int(self.B, 1, self.num_steps)
+        """Test markov process starting at specific state"""
+        y = markov_chain_int(self.trans_mat, 1, self.num_steps)
         self.assertEqual(y, 3)
 
     @statistical_test(50, 0.7)
     def test_markov_chain_int_2(self):
-        y = markov_chain_int(self.B, 2, self.num_steps)
+        """Test markov process starting at specific state"""
+        y = markov_chain_int(self.trans_mat, 2, self.num_steps)
         self.assertEqual(y, 3)
 
     @statistical_test(50, 0.7)
     def test_markov_chain_int_3(self):
-        y = markov_chain_int(self.B, 3, self.num_steps)
+        """Test markov process starting at specific state"""
+        y = markov_chain_int(self.trans_mat, 3, self.num_steps)
         self.assertEqual(y, 3)
 
 
