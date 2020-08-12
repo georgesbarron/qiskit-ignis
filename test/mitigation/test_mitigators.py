@@ -15,11 +15,11 @@
 Test mitigators
 """
 
-import unittest
-from typing import List, Dict, Tuple
 from itertools import combinations, product, chain, permutations
+from typing import List, Tuple
+import unittest
 
-import numpy as np
+from ddt import ddt, unpack, data
 
 from qiskit import execute, QuantumCircuit
 from qiskit.result import Result
@@ -29,10 +29,13 @@ from qiskit.ignis.mitigation.measurement import (
     MeasMitigatorFitter,
     counts_expectation_value
 )
-from ddt import ddt, unpack, data
 
 
 class NoisySimulationTest(unittest.TestCase):
+    """Base class that contains methods and attributes
+    for doing tests of readout error noise with flexible
+    readout errors.
+    """
 
     sim = QasmSimulator()
 
@@ -59,6 +62,8 @@ class NoisySimulationTest(unittest.TestCase):
     tolerance = 0.05
 
     def execute_circs(self, qc_list: List[QuantumCircuit], noise_model = None) -> Result:
+        """Run circuits with the readout noise defined in this class
+        """
         return execute(
             qc_list,
             backend=self.sim,
@@ -70,6 +75,9 @@ class NoisySimulationTest(unittest.TestCase):
 
 
 class TestExpVals(NoisySimulationTest):
+    """Test the expectation values of all the MeasMitigator* classes
+    and compare against the exact results.
+    """
 
     qc = QuantumCircuit(4, 4)
     qc.h(0)
@@ -89,16 +97,19 @@ class TestExpVals(NoisySimulationTest):
         self.exp_targ = counts_expectation_value(counts_target)
 
         self.method = None
-    
+
     def test_ctmp_exp(self):
+        """Test CTMP"""
         self.method = 'CTMP'
 
     def test_full_exp(self):
+        """Test complete"""
         self.method = 'complete'
 
     def test_tensored_exp(self):
+        """Test tensored"""
         self.method = 'tensored'
-    
+
     def tearDown(self):
         circs, meta, _ = MeasMitigatorGenerator(self.num_qubits, method=self.method).run()
         result_cal = self.execute_circs(circs, noise_model=self.noise_model)
@@ -111,20 +122,28 @@ class TestExpVals(NoisySimulationTest):
 
 # https://docs.python.org/3/library/itertools.html#recipes
 def powerset(iterable):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+    """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
+    output_set = list(iterable)
+    return chain.from_iterable(combinations(output_set, r) for r in range(len(output_set)+1))
 
 
 @ddt
 class TestPartialExpVals(NoisySimulationTest):
+    """Test taking expectation values on only subsets of qubits and permutations
+    of the original set of qubits.
+    """
 
     @data(*product(
-        [item for sublist in [*map(lambda x: list(permutations(x)), powerset(range(4)))] for item in sublist],
+        [
+            item for sublist in
+            [*map(lambda x: list(permutations(x)), powerset(range(4)))] for item in sublist],
         ['complete', 'tensored']
         ))
     @unpack
     def test_partial_expval(self, qubits: Tuple[int], method: str):
+        """Test taking the expectation value only on the set of `qubits`
+        with `method` for mitigation.
+        """
 
         if len(qubits) == 0:
             return None
@@ -150,6 +169,7 @@ class TestPartialExpVals(NoisySimulationTest):
         expval = mitigator.expectation_value(counts_nois, qubits=qubits)
 
         self.assertLess(abs(exp_targ - expval), self.tolerance)
+        return None
 
 
 if __name__ == '__main__':
